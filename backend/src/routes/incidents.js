@@ -133,6 +133,7 @@ router.get('/:id', asyncHandler(async (req, res) => {
           description
           incident_types
           estimated_duration
+          flow_diagram_url
         }
       }
     }
