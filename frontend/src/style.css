@@ -1329,9 +1329,13 @@ tbody tr:hover {
 }
 
 .playbook-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   border-top: 1px solid var(--border-color);
   padding-top: var(--spacing-md);
   margin-top: var(--spacing-lg);
+  gap: var(--spacing-md);
 }
 
 .playbook-dates small {

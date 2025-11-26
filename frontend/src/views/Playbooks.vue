@@ -167,8 +167,92 @@
             <div class="playbook-dates">
               <small>Created: {{ formatDate(playbook.created_at) }}</small>
             </div>
+            <button @click="openEditForm(playbook)" class="btn btn-sm btn-secondary">✏️ Edit</button>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- Edit Playbook Form -->
+    <div v-if="showEditForm && editPlaybook" class="modal-overlay" @click.self="closeEditForm">
+      <div class="modal modal-large">
+        <div class="modal-header">
+          <h2>Edit Playbook</h2>
+          <button @click="closeEditForm" class="btn-close">×</button>
+        </div>
+        <form @submit.prevent="handleUpdatePlaybook" class="playbook-form">
+          <div class="form-group">
+            <label>Name *</label>
+            <input v-model="editPlaybook.name" type="text" required placeholder="Playbook name" />
+          </div>
+
+          <div class="form-group">
+            <label>Description *</label>
+            <textarea v-model="editPlaybook.description" rows="4" required placeholder="Describe this playbook..."></textarea>
+          </div>
+
+          <div class="form-group">
+            <label>Incident Types</label>
+            <div class="tag-input-wrapper">
+              <div class="tag-input">
+                <input
+                  v-model="editIncidentType"
+                  @keydown.enter.prevent="addEditIncidentType"
+                  type="text"
+                  placeholder="Type incident type and press Enter (e.g., malware, phishing)"
+                />
+                <button type="button" @click="addEditIncidentType" class="btn btn-sm btn-secondary">Add</button>
+              </div>
+              <div v-if="editPlaybook.incident_types && editPlaybook.incident_types.length > 0" class="tags-list">
+                <span v-for="type in editPlaybook.incident_types" :key="type" class="tag tag-removable">
+                  {{ type }}
+                  <button type="button" @click="removeEditIncidentType(type)" class="tag-remove">×</button>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Severity Levels</label>
+            <div class="severity-checkboxes">
+              <label
+                v-for="severity in availableSeverities"
+                :key="severity"
+                class="severity-checkbox"
+              >
+                <input
+                  type="checkbox"
+                  :checked="editPlaybook.severity_levels?.includes(severity)"
+                  @change="toggleEditSeverity(severity)"
+                />
+                <span :class="['severity-label', 'severity-' + getSeverityClass(severity)]">
+                  {{ severity }}
+                </span>
+              </label>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Estimated Duration</label>
+            <input v-model="editPlaybook.estimated_duration" type="text" placeholder="e.g., 2-4 hours" />
+          </div>
+
+          <div class="form-group checkbox-group">
+            <label>
+              <input v-model="editPlaybook.is_active" type="checkbox" />
+              <span>Active Playbook</span>
+            </label>
+          </div>
+
+          <div v-if="error" class="error-message">{{ error }}</div>
+
+          <div class="form-actions">
+            <button type="button" @click="closeEditForm" class="btn btn-secondary">Cancel</button>
+            <button type="submit" :disabled="loading" class="btn btn-primary">
+              {{ loading ? 'Updating...' : 'Update Playbook' }}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   </div>
@@ -177,10 +261,12 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { usePlaybooksStore } from '@/stores/playbooks'
+import type { PlaybookTemplate } from '@/types'
 
 const playbooksStore = usePlaybooksStore()
 
 const showCreateForm = ref(false)
+const showEditForm = ref(false)
 const loading = ref(false)
 const error = ref<string | null>(null)
 
@@ -192,6 +278,9 @@ const newPlaybook = ref({
   estimated_duration: '',
   is_active: true
 })
+
+const editPlaybook = ref<PlaybookTemplate | null>(null)
+const editIncidentType = ref('')
 
 const newIncidentType = ref('')
 const availableSeverities = ['High', 'Medium', 'Low']
@@ -255,6 +344,80 @@ function toggleSeverity(severity: string) {
     newPlaybook.value.severity_levels.splice(index, 1)
   } else {
     newPlaybook.value.severity_levels.push(severity)
+  }
+}
+
+function openEditForm(playbook: PlaybookTemplate) {
+  editPlaybook.value = {
+    uid: playbook.uid,
+    name: playbook.name,
+    description: playbook.description,
+    incident_types: [...(playbook.incident_types || [])],
+    severity_levels: [...(playbook.severity_levels || [])],
+    estimated_duration: playbook.estimated_duration || '',
+    is_active: playbook.is_active !== undefined ? playbook.is_active : true
+  }
+  showEditForm.value = true
+  error.value = null
+}
+
+function closeEditForm() {
+  showEditForm.value = false
+  editPlaybook.value = null
+  editIncidentType.value = ''
+  error.value = null
+}
+
+async function handleUpdatePlaybook() {
+  if (!editPlaybook.value || !editPlaybook.value.uid) return
+
+  loading.value = true
+  error.value = null
+
+  try {
+    await playbooksStore.updatePlaybook(editPlaybook.value.uid, {
+      name: editPlaybook.value.name,
+      description: editPlaybook.value.description,
+      incident_types: editPlaybook.value.incident_types,
+      severity_levels: editPlaybook.value.severity_levels,
+      estimated_duration: editPlaybook.value.estimated_duration,
+      is_active: editPlaybook.value.is_active
+    })
+    closeEditForm()
+  } catch (err: any) {
+    error.value = err.response?.data?.message || 'Failed to update playbook'
+  } finally {
+    loading.value = false
+  }
+}
+
+function addEditIncidentType() {
+  if (!editPlaybook.value) return
+  const type = editIncidentType.value.trim()
+  if (type && !editPlaybook.value.incident_types?.includes(type)) {
+    if (!editPlaybook.value.incident_types) {
+      editPlaybook.value.incident_types = []
+    }
+    editPlaybook.value.incident_types.push(type)
+    editIncidentType.value = ''
+  }
+}
+
+function removeEditIncidentType(type: string) {
+  if (!editPlaybook.value || !editPlaybook.value.incident_types) return
+  editPlaybook.value.incident_types = editPlaybook.value.incident_types.filter(t => t !== type)
+}
+
+function toggleEditSeverity(severity: string) {
+  if (!editPlaybook.value) return
+  if (!editPlaybook.value.severity_levels) {
+    editPlaybook.value.severity_levels = []
+  }
+  const index = editPlaybook.value.severity_levels.indexOf(severity)
+  if (index > -1) {
+    editPlaybook.value.severity_levels.splice(index, 1)
+  } else {
+    editPlaybook.value.severity_levels.push(severity)
   }
 }
 </script>
