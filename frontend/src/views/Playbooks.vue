@@ -224,8 +224,6 @@ const uploadingDiagram = ref(false)
 
 onMounted(async () => {
   await playbooksStore.fetchPlaybooks()
-  console.log('Playbooks loaded:', playbooksStore.playbooks)
-  console.log('Playbooks with diagrams:', playbooksStore.playbooks.filter(p => p.flow_diagram_url))
 })
 
 async function handleCreatePlaybook() {
