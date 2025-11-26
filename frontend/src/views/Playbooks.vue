@@ -76,12 +76,25 @@
             </label>
           </div>
 
+          <div class="form-group">
+            <label>Flow Diagram (Image)</label>
+            <input
+              type="file"
+              @change="handleNewDiagramChange"
+              accept="image/*"
+            />
+            <small>Upload a flow diagram image for this playbook (PNG, JPG, etc.)</small>
+            <div v-if="newDiagramFile" class="file-preview">
+              Selected: {{ newDiagramFile.name }}
+            </div>
+          </div>
+
           <div v-if="error" class="error-message">{{ error }}</div>
 
           <div class="form-actions">
             <button type="button" @click="showCreateForm = false" class="btn btn-secondary">Cancel</button>
-            <button type="submit" :disabled="loading" class="btn btn-primary">
-              {{ loading ? 'Creating...' : 'Create Playbook' }}
+            <button type="submit" :disabled="loading || uploadingDiagram" class="btn btn-primary">
+              {{ loading || uploadingDiagram ? 'Creating...' : 'Create Playbook' }}
             </button>
           </div>
         </form>
@@ -161,6 +174,18 @@
                 +{{ playbook.steps.length - 3 }} more steps
               </div>
             </div>
+          </div>
+
+          <!-- Flow Diagram Preview -->
+          <div v-if="playbook.flow_diagram_url" class="diagram-preview">
+            <h4>Flow Diagram</h4>
+            <img
+              :src="getDiagramUrl(playbook.flow_diagram_url)"
+              alt="Flow diagram"
+              class="diagram-thumbnail"
+              @error="handleImageError"
+              @load="handleImageLoad"
+            />
           </div>
 
           <div class="playbook-footer">
@@ -244,12 +269,29 @@
             </label>
           </div>
 
+          <div class="form-group">
+            <label>Flow Diagram (Image)</label>
+            <div v-if="editPlaybook.flow_diagram_url" class="current-diagram">
+              <img :src="getDiagramUrl(editPlaybook.flow_diagram_url)" alt="Current flow diagram" style="max-width: 200px; margin-bottom: 10px;" />
+              <button type="button" @click="deleteDiagram(editPlaybook.uid!)" class="btn btn-sm btn-danger">Delete Current Diagram</button>
+            </div>
+            <input
+              type="file"
+              @change="handleEditDiagramChange"
+              accept="image/*"
+            />
+            <small>Upload a new flow diagram image (will replace existing if any)</small>
+            <div v-if="editDiagramFile" class="file-preview">
+              Selected: {{ editDiagramFile.name }}
+            </div>
+          </div>
+
           <div v-if="error" class="error-message">{{ error }}</div>
 
           <div class="form-actions">
             <button type="button" @click="closeEditForm" class="btn btn-secondary">Cancel</button>
-            <button type="submit" :disabled="loading" class="btn btn-primary">
-              {{ loading ? 'Updating...' : 'Update Playbook' }}
+            <button type="submit" :disabled="loading || uploadingDiagram" class="btn btn-primary">
+              {{ loading || uploadingDiagram ? 'Updating...' : 'Update Playbook' }}
             </button>
           </div>
         </form>
@@ -262,6 +304,7 @@
 import { ref, onMounted } from 'vue'
 import { usePlaybooksStore } from '@/stores/playbooks'
 import type { PlaybookTemplate } from '@/types'
+import api from '@/services/api'
 
 const playbooksStore = usePlaybooksStore()
 
@@ -285,8 +328,14 @@ const editIncidentType = ref('')
 const newIncidentType = ref('')
 const availableSeverities = ['High', 'Medium', 'Low']
 
+const newDiagramFile = ref<File | null>(null)
+const editDiagramFile = ref<File | null>(null)
+const uploadingDiagram = ref(false)
+
 onMounted(async () => {
   await playbooksStore.fetchPlaybooks()
+  console.log('Playbooks loaded:', playbooksStore.playbooks)
+  console.log('Playbooks with diagrams:', playbooksStore.playbooks.filter(p => p.flow_diagram_url))
 })
 
 async function handleCreatePlaybook() {
@@ -294,7 +343,22 @@ async function handleCreatePlaybook() {
   error.value = null
 
   try {
-    await playbooksStore.createPlaybook(newPlaybook.value)
+    const result = await playbooksStore.createPlaybook(newPlaybook.value)
+
+    // If a diagram file was selected, upload it
+    if (newDiagramFile.value && result?.uid) {
+      uploadingDiagram.value = true
+      try {
+        await api.uploadPlaybookDiagram(result.uid, newDiagramFile.value)
+        await playbooksStore.fetchPlaybooks() // Refresh to get updated diagram URL
+      } catch (uploadErr) {
+        console.error('Failed to upload diagram:', uploadErr)
+        error.value = 'Playbook created but diagram upload failed'
+      } finally {
+        uploadingDiagram.value = false
+      }
+    }
+
     showCreateForm.value = false
     newPlaybook.value = {
       name: '',
@@ -305,6 +369,7 @@ async function handleCreatePlaybook() {
       is_active: true
     }
     newIncidentType.value = ''
+    newDiagramFile.value = null
   } catch (err: any) {
     error.value = err.response?.data?.message || 'Failed to create playbook'
   } finally {
@@ -365,6 +430,7 @@ function closeEditForm() {
   showEditForm.value = false
   editPlaybook.value = null
   editIncidentType.value = ''
+  editDiagramFile.value = null
   error.value = null
 }
 
@@ -383,6 +449,21 @@ async function handleUpdatePlaybook() {
       estimated_duration: editPlaybook.value.estimated_duration,
       is_active: editPlaybook.value.is_active
     })
+
+    // If a new diagram file was selected, upload it
+    if (editDiagramFile.value && editPlaybook.value.uid) {
+      uploadingDiagram.value = true
+      try {
+        await api.uploadPlaybookDiagram(editPlaybook.value.uid, editDiagramFile.value)
+        await playbooksStore.fetchPlaybooks() // Refresh to get updated diagram URL
+      } catch (uploadErr) {
+        console.error('Failed to upload diagram:', uploadErr)
+        error.value = 'Playbook updated but diagram upload failed'
+      } finally {
+        uploadingDiagram.value = false
+      }
+    }
+
     closeEditForm()
   } catch (err: any) {
     error.value = err.response?.data?.message || 'Failed to update playbook'
@@ -419,5 +500,49 @@ function toggleEditSeverity(severity: string) {
   } else {
     editPlaybook.value.severity_levels.push(severity)
   }
+}
+
+function handleNewDiagramChange(event: Event) {
+  const target = event.target as HTMLInputElement
+  if (target.files && target.files.length > 0) {
+    newDiagramFile.value = target.files[0]
+  }
+}
+
+function handleEditDiagramChange(event: Event) {
+  const target = event.target as HTMLInputElement
+  if (target.files && target.files.length > 0) {
+    editDiagramFile.value = target.files[0]
+  }
+}
+
+async function deleteDiagram(playbookId: string) {
+  if (!confirm('Are you sure you want to delete this flow diagram?')) return
+
+  try {
+    await api.deletePlaybookDiagram(playbookId)
+    await playbooksStore.fetchPlaybooks()
+  } catch (err) {
+    console.error('Failed to delete diagram:', err)
+    alert('Failed to delete diagram')
+  }
+}
+
+function getDiagramUrl(url?: string): string {
+  if (!url) return ''
+  if (url.startsWith('http')) return url
+  const fullUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}${url}`
+  console.log('Diagram URL:', fullUrl)
+  return fullUrl
+}
+
+function handleImageError(event: Event) {
+  const img = event.target as HTMLImageElement
+  console.error('Failed to load image:', img.src)
+}
+
+function handleImageLoad(event: Event) {
+  const img = event.target as HTMLImageElement
+  console.log('Image loaded successfully:', img.src)
 }
 </script>

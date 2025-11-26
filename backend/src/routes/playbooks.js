@@ -3,6 +3,13 @@ import { asyncHandler } from '../middleware/errorHandler.js';
 import { validatePlaybook } from '../middleware/validators.js';
 import dgraphClient from '../config/database.js';
 import logger from '../config/logger.js';
+import upload from '../config/upload.js';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const router = express.Router();
 
@@ -18,6 +25,7 @@ router.get('/', asyncHandler(async (req, res) => {
         severity_levels
         estimated_duration
         is_active
+        flow_diagram_url
         created_at
         updated_at
         steps {
@@ -51,6 +59,25 @@ router.get('/', asyncHandler(async (req, res) => {
   }
 }));
 
+// GET /api/playbooks/diagrams/:filename - Serve flow diagram image
+// IMPORTANT: This route must come BEFORE /:id route to avoid "diagrams" being treated as an ID
+router.get('/diagrams/:filename', asyncHandler(async (req, res) => {
+  const { filename } = req.params;
+  const uploadsDir = path.join(__dirname, '../../uploads');
+  const filePath = path.join(uploadsDir, filename);
+
+  // Check if file exists
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({
+      success: false,
+      error: 'File not found'
+    });
+  }
+
+  // Send the file
+  res.sendFile(filePath);
+}));
+
 // GET /api/playbooks/:id - Get single playbook
 router.get('/:id', asyncHandler(async (req, res) => {
   const { id } = req.params;
@@ -65,6 +92,7 @@ router.get('/:id', asyncHandler(async (req, res) => {
         severity_levels
         estimated_duration
         is_active
+        flow_diagram_url
         created_at
         updated_at
         steps {
@@ -175,6 +203,7 @@ router.put('/:id', asyncHandler(async (req, res) => {
   if (updates.severity_levels) playbook.severity_levels = updates.severity_levels;
   if (updates.estimated_duration) playbook.estimated_duration = updates.estimated_duration;
   if (updates.is_active !== undefined) playbook.is_active = updates.is_active;
+  if (updates.flow_diagram_url !== undefined) playbook.flow_diagram_url = updates.flow_diagram_url;
 
   const txn = dgraphClient.newTxn();
   try {
@@ -212,6 +241,113 @@ router.delete('/:id', asyncHandler(async (req, res) => {
   } catch (error) {
     await txn.discard();
     throw error;
+  }
+}));
+
+// POST /api/playbooks/:id/upload-diagram - Upload flow diagram for a playbook
+router.post('/:id/upload-diagram', upload.single('diagram'), asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  if (!req.file) {
+    return res.status(400).json({
+      success: false,
+      error: 'No file uploaded'
+    });
+  }
+
+  // Construct the URL for the uploaded file
+  const fileUrl = `/api/playbooks/diagrams/${req.file.filename}`;
+
+  // Update the playbook with the flow diagram URL
+  const txn = dgraphClient.newTxn();
+  try {
+    const playbook = {
+      uid: id,
+      flow_diagram_url: fileUrl,
+      updated_at: new Date().toISOString()
+    };
+
+    await txn.mutate({ setJson: playbook });
+    await txn.commit();
+
+    logger.info(`Uploaded flow diagram for playbook: ${id}`);
+
+    res.json({
+      success: true,
+      message: 'Flow diagram uploaded successfully',
+      data: {
+        flow_diagram_url: fileUrl
+      }
+    });
+  } catch (error) {
+    await txn.discard();
+    // Delete the uploaded file if database update fails
+    fs.unlinkSync(req.file.path);
+    throw error;
+  }
+}));
+
+// DELETE /api/playbooks/:id/diagram - Delete flow diagram
+router.delete('/:id/diagram', asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  // First, get the current playbook to find the diagram URL
+  const query = `
+    {
+      playbook(func: uid(${id})) @filter(type(PlaybookTemplate)) {
+        uid
+        flow_diagram_url
+      }
+    }
+  `;
+
+  const txnRead = dgraphClient.newTxn({ readOnly: true });
+  try {
+    const response = await txnRead.query(query);
+    const playbook = response.data.playbook?.[0];
+
+    if (!playbook) {
+      return res.status(404).json({
+        success: false,
+        error: 'Playbook not found'
+      });
+    }
+
+    // Delete the file if it exists
+    if (playbook.flow_diagram_url) {
+      const filename = path.basename(playbook.flow_diagram_url);
+      const uploadsDir = path.join(__dirname, '../../uploads');
+      const filePath = path.join(uploadsDir, filename);
+
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    }
+
+    // Update the playbook to remove the flow_diagram_url
+    const txn = dgraphClient.newTxn();
+    try {
+      const update = {
+        uid: id,
+        flow_diagram_url: null,
+        updated_at: new Date().toISOString()
+      };
+
+      await txn.mutate({ setJson: update });
+      await txn.commit();
+
+      logger.info(`Deleted flow diagram for playbook: ${id}`);
+
+      res.json({
+        success: true,
+        message: 'Flow diagram deleted successfully'
+      });
+    } catch (error) {
+      await txn.discard();
+      throw error;
+    }
+  } finally {
+    await txnRead.discard();
   }
 }));
 

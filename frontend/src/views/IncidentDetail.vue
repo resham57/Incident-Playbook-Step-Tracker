@@ -468,7 +468,34 @@
                 <span class="meta-label">Duration:</span>
                 <span>{{ incident.playbook.estimated_duration }}</span>
               </div>
+              <div v-if="incident.playbook.flow_diagram_url" class="playbook-diagram">
+                <h5 style="margin-top: 1rem; margin-bottom: 0.5rem;">Flow Diagram</h5>
+                <img
+                  :src="getPlaybookDiagramUrl(incident.playbook.flow_diagram_url)"
+                  alt="Playbook flow diagram"
+                  class="flow-diagram-img"
+                  @click="openDiagramModal(incident.playbook.flow_diagram_url)"
+                  style="cursor: pointer;"
+                />
+              </div>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Flow Diagram Modal -->
+      <div v-if="showDiagramModal" class="modal-overlay" @click="showDiagramModal = false">
+        <div class="modal modal-large" @click.stop>
+          <div class="modal-header">
+            <h2>Flow Diagram</h2>
+            <button @click="showDiagramModal = false" class="btn-close">×</button>
+          </div>
+          <div class="modal-body" style="text-align: center;">
+            <img
+              :src="getPlaybookDiagramUrl(currentDiagramUrl)"
+              alt="Playbook flow diagram"
+              style="max-width: 100%; height: auto;"
+            />
           </div>
         </div>
       </div>
@@ -527,6 +554,9 @@ const showRelatedTicketForm = ref(false)
 const relatedTicketForm = ref({
   ticketId: ''
 })
+
+const showDiagramModal = ref(false)
+const currentDiagramUrl = ref('')
 
 const incident = computed(() => incidentsStore.currentIncident)
 const availableIncidents = computed(() => {
@@ -851,5 +881,15 @@ function formatDate(dateString?: string): string {
   if (!dateString) return 'N/A'
   const date = new Date(dateString)
   return date.toLocaleDateString() + ' ' + date.toLocaleTimeString()
+}
+
+function getPlaybookDiagramUrl(url: string): string {
+  if (url.startsWith('http')) return url
+  return `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}${url}`
+}
+
+function openDiagramModal(url: string) {
+  currentDiagramUrl.value = url
+  showDiagramModal.value = true
 }
 </script>

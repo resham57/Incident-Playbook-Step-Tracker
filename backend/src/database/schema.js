@@ -37,6 +37,7 @@ export const schema = `
   severity_levels: [string] .
   estimated_duration: string .
   steps: [uid] @reverse .
+  flow_diagram_url: string .
 
   step_number: int @index(int) .
   action_items: [string] .
@@ -93,6 +94,7 @@ export const schema = `
     created_at
     updated_at
     is_active
+    flow_diagram_url
   }
 
   type PlaybookStep {

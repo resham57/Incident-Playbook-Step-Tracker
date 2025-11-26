@@ -974,6 +974,42 @@ tbody tr:hover {
   font-size: 0.875rem;
 }
 
+.playbook-diagram {
+  margin-top: var(--spacing-md);
+}
+
+.flow-diagram-img {
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  transition: transform 0.2s;
+}
+
+.flow-diagram-img:hover {
+  transform: scale(1.02);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.current-diagram {
+  margin-bottom: var(--spacing-md);
+}
+
+.current-diagram img {
+  display: block;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+}
+
+.file-preview {
+  margin-top: var(--spacing-sm);
+  padding: var(--spacing-sm);
+  background-color: var(--background-secondary);
+  border-radius: var(--border-radius);
+  font-size: 0.875rem;
+}
+
 /* ============================================
    Users Page
    ============================================ */
@@ -1326,6 +1362,31 @@ tbody tr:hover {
   color: var(--text-muted);
   font-size: 0.875rem;
   font-style: italic;
+}
+
+.diagram-preview {
+  margin-top: var(--spacing-lg);
+}
+
+.diagram-preview h4 {
+  font-size: 0.875rem;
+  margin-bottom: var(--spacing-sm);
+  color: var(--text-secondary);
+}
+
+.diagram-thumbnail {
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  transition: transform 0.2s;
+  cursor: pointer;
+}
+
+.diagram-thumbnail:hover {
+  transform: scale(1.02);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .playbook-footer {

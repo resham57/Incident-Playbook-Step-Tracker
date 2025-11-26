@@ -114,6 +114,27 @@ class ApiClient {
     return response.data
   }
 
+  async uploadPlaybookDiagram(playbookId: string, file: File): Promise<ApiResponse<any>> {
+    const formData = new FormData()
+    formData.append('diagram', file)
+
+    const response: AxiosResponse<ApiResponse<any>> = await this.client.post(
+      `/api/playbooks/${playbookId}/upload-diagram`,
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      }
+    )
+    return response.data
+  }
+
+  async deletePlaybookDiagram(playbookId: string): Promise<ApiResponse<void>> {
+    const response: AxiosResponse<ApiResponse<void>> = await this.client.delete(`/api/playbooks/${playbookId}/diagram`)
+    return response.data
+  }
+
   // Artifacts
   async createArtifact(incidentId: string, artifact: Partial<Artifact>): Promise<ApiResponse<Artifact>> {
     const response: AxiosResponse<ApiResponse<Artifact>> = await this.client.post(`/api/incidents/${incidentId}/artifacts`, artifact)

@@ -91,6 +91,7 @@ export interface PlaybookTemplate {
   estimated_duration?: string
   steps?: PlaybookStep[]
   is_active?: boolean
+  flow_diagram_url?: string
   created_at?: string
   updated_at?: string
 }
