@@ -352,7 +352,6 @@ function getDiagramUrl(url?: string): string {
   if (!url) return ''
   if (url.startsWith('http')) return url
   const fullUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}${url}`
-  console.log('Diagram URL:', fullUrl)
   return fullUrl
 }
 
@@ -363,6 +362,5 @@ function handleImageError(event: Event) {
 
 function handleImageLoad(event: Event) {
   const img = event.target as HTMLImageElement
-  console.log('Image loaded successfully:', img.src)
 }
 </script>
