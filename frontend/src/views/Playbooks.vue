@@ -24,47 +24,6 @@
           </div>
 
           <div class="form-group">
-            <label>Incident Types</label>
-            <div class="tag-input-wrapper">
-              <div class="tag-input">
-                <input
-                  v-model="newIncidentType"
-                  @keydown.enter.prevent="addIncidentType"
-                  type="text"
-                  placeholder="Type incident type and press Enter (e.g., malware, phishing)"
-                />
-                <button type="button" @click="addIncidentType" class="btn btn-sm btn-secondary">Add</button>
-              </div>
-              <div v-if="newPlaybook.incident_types.length > 0" class="tags-list">
-                <span v-for="type in newPlaybook.incident_types" :key="type" class="tag tag-removable">
-                  {{ type }}
-                  <button type="button" @click="removeIncidentType(type)" class="tag-remove">×</button>
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label>Severity Levels</label>
-            <div class="severity-checkboxes">
-              <label
-                v-for="severity in availableSeverities"
-                :key="severity"
-                class="severity-checkbox"
-              >
-                <input
-                  type="checkbox"
-                  :checked="newPlaybook.severity_levels.includes(severity)"
-                  @change="toggleSeverity(severity)"
-                />
-                <span :class="['severity-label', 'severity-' + getSeverityClass(severity)]">
-                  {{ severity }}
-                </span>
-              </label>
-            </div>
-          </div>
-
-          <div class="form-group">
             <label>Estimated Duration</label>
             <input v-model="newPlaybook.estimated_duration" type="text" placeholder="e.g., 2-4 hours" />
           </div>
@@ -126,28 +85,6 @@
           <p class="playbook-description">{{ playbook.description }}</p>
 
           <div class="playbook-meta">
-            <div v-if="playbook.incident_types && playbook.incident_types.length > 0" class="meta-group">
-              <span class="meta-label">Incident Types:</span>
-              <div class="tags">
-                <span v-for="(type, index) in playbook.incident_types" :key="index" class="tag">
-                  {{ type }}
-                </span>
-              </div>
-            </div>
-
-            <div v-if="playbook.severity_levels && playbook.severity_levels.length > 0" class="meta-group">
-              <span class="meta-label">Severity Levels:</span>
-              <div class="tags">
-                <span
-                  v-for="(level, index) in playbook.severity_levels"
-                  :key="index"
-                  :class="['tag', 'tag-' + getSeverityClass(level)]"
-                >
-                  {{ level }}
-                </span>
-              </div>
-            </div>
-
             <div v-if="playbook.estimated_duration" class="meta-group">
               <span class="meta-label">Duration:</span>
               <span class="meta-value">{{ playbook.estimated_duration }}</span>
@@ -217,47 +154,6 @@
           </div>
 
           <div class="form-group">
-            <label>Incident Types</label>
-            <div class="tag-input-wrapper">
-              <div class="tag-input">
-                <input
-                  v-model="editIncidentType"
-                  @keydown.enter.prevent="addEditIncidentType"
-                  type="text"
-                  placeholder="Type incident type and press Enter (e.g., malware, phishing)"
-                />
-                <button type="button" @click="addEditIncidentType" class="btn btn-sm btn-secondary">Add</button>
-              </div>
-              <div v-if="editPlaybook.incident_types && editPlaybook.incident_types.length > 0" class="tags-list">
-                <span v-for="type in editPlaybook.incident_types" :key="type" class="tag tag-removable">
-                  {{ type }}
-                  <button type="button" @click="removeEditIncidentType(type)" class="tag-remove">×</button>
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label>Severity Levels</label>
-            <div class="severity-checkboxes">
-              <label
-                v-for="severity in availableSeverities"
-                :key="severity"
-                class="severity-checkbox"
-              >
-                <input
-                  type="checkbox"
-                  :checked="editPlaybook.severity_levels?.includes(severity)"
-                  @change="toggleEditSeverity(severity)"
-                />
-                <span :class="['severity-label', 'severity-' + getSeverityClass(severity)]">
-                  {{ severity }}
-                </span>
-              </label>
-            </div>
-          </div>
-
-          <div class="form-group">
             <label>Estimated Duration</label>
             <input v-model="editPlaybook.estimated_duration" type="text" placeholder="e.g., 2-4 hours" />
           </div>
@@ -316,17 +212,11 @@ const error = ref<string | null>(null)
 const newPlaybook = ref({
   name: '',
   description: '',
-  incident_types: [] as string[],
-  severity_levels: [] as string[],
   estimated_duration: '',
   is_active: true
 })
 
 const editPlaybook = ref<PlaybookTemplate | null>(null)
-const editIncidentType = ref('')
-
-const newIncidentType = ref('')
-const availableSeverities = ['High', 'Medium', 'Low']
 
 const newDiagramFile = ref<File | null>(null)
 const editDiagramFile = ref<File | null>(null)
@@ -363,12 +253,9 @@ async function handleCreatePlaybook() {
     newPlaybook.value = {
       name: '',
       description: '',
-      incident_types: [],
-      severity_levels: [],
       estimated_duration: '',
       is_active: true
     }
-    newIncidentType.value = ''
     newDiagramFile.value = null
   } catch (err: any) {
     error.value = err.response?.data?.message || 'Failed to create playbook'
@@ -377,39 +264,9 @@ async function handleCreatePlaybook() {
   }
 }
 
-function getSeverityClass(severity: string): string {
-  const severityMap: Record<string, string> = {
-    High: 'danger',
-    Medium: 'warning',
-    Low: 'info'
-  }
-  return severityMap[severity] || 'secondary'
-}
-
 function formatDate(dateString?: string): string {
   if (!dateString) return 'N/A'
   return new Date(dateString).toLocaleDateString()
-}
-
-function addIncidentType() {
-  const type = newIncidentType.value.trim()
-  if (type && !newPlaybook.value.incident_types.includes(type)) {
-    newPlaybook.value.incident_types.push(type)
-    newIncidentType.value = ''
-  }
-}
-
-function removeIncidentType(type: string) {
-  newPlaybook.value.incident_types = newPlaybook.value.incident_types.filter(t => t !== type)
-}
-
-function toggleSeverity(severity: string) {
-  const index = newPlaybook.value.severity_levels.indexOf(severity)
-  if (index > -1) {
-    newPlaybook.value.severity_levels.splice(index, 1)
-  } else {
-    newPlaybook.value.severity_levels.push(severity)
-  }
 }
 
 function openEditForm(playbook: PlaybookTemplate) {
@@ -417,8 +274,6 @@ function openEditForm(playbook: PlaybookTemplate) {
     uid: playbook.uid,
     name: playbook.name,
     description: playbook.description,
-    incident_types: [...(playbook.incident_types || [])],
-    severity_levels: [...(playbook.severity_levels || [])],
     estimated_duration: playbook.estimated_duration || '',
     is_active: playbook.is_active !== undefined ? playbook.is_active : true
   }
@@ -429,7 +284,6 @@ function openEditForm(playbook: PlaybookTemplate) {
 function closeEditForm() {
   showEditForm.value = false
   editPlaybook.value = null
-  editIncidentType.value = ''
   editDiagramFile.value = null
   error.value = null
 }
@@ -444,8 +298,6 @@ async function handleUpdatePlaybook() {
     await playbooksStore.updatePlaybook(editPlaybook.value.uid, {
       name: editPlaybook.value.name,
       description: editPlaybook.value.description,
-      incident_types: editPlaybook.value.incident_types,
-      severity_levels: editPlaybook.value.severity_levels,
       estimated_duration: editPlaybook.value.estimated_duration,
       is_active: editPlaybook.value.is_active
     })
@@ -469,36 +321,6 @@ async function handleUpdatePlaybook() {
     error.value = err.response?.data?.message || 'Failed to update playbook'
   } finally {
     loading.value = false
-  }
-}
-
-function addEditIncidentType() {
-  if (!editPlaybook.value) return
-  const type = editIncidentType.value.trim()
-  if (type && !editPlaybook.value.incident_types?.includes(type)) {
-    if (!editPlaybook.value.incident_types) {
-      editPlaybook.value.incident_types = []
-    }
-    editPlaybook.value.incident_types.push(type)
-    editIncidentType.value = ''
-  }
-}
-
-function removeEditIncidentType(type: string) {
-  if (!editPlaybook.value || !editPlaybook.value.incident_types) return
-  editPlaybook.value.incident_types = editPlaybook.value.incident_types.filter(t => t !== type)
-}
-
-function toggleEditSeverity(severity: string) {
-  if (!editPlaybook.value) return
-  if (!editPlaybook.value.severity_levels) {
-    editPlaybook.value.severity_levels = []
-  }
-  const index = editPlaybook.value.severity_levels.indexOf(severity)
-  if (index > -1) {
-    editPlaybook.value.severity_levels.splice(index, 1)
-  } else {
-    editPlaybook.value.severity_levels.push(severity)
   }
 }
 

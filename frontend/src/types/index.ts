@@ -86,8 +86,6 @@ export interface PlaybookTemplate {
   uid?: string
   name: string
   description: string
-  incident_types?: string[]
-  severity_levels?: string[]
   estimated_duration?: string
   steps?: PlaybookStep[]
   is_active?: boolean

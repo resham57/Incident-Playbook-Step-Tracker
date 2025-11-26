@@ -33,8 +33,6 @@ export const schema = `
   incident: uid @reverse .
   notes: string .
 
-  incident_types: [string] @index(term) .
-  severity_levels: [string] .
   estimated_duration: string .
   steps: [uid] @reverse .
   flow_diagram_url: string .
@@ -87,8 +85,6 @@ export const schema = `
   type PlaybookTemplate {
     name
     description
-    incident_types
-    severity_levels
     estimated_duration
     steps
     created_at

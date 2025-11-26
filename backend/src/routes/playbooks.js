@@ -21,8 +21,6 @@ router.get('/', asyncHandler(async (req, res) => {
         uid
         name
         description
-        incident_types
-        severity_levels
         estimated_duration
         is_active
         flow_diagram_url
@@ -88,8 +86,6 @@ router.get('/:id', asyncHandler(async (req, res) => {
         uid
         name
         description
-        incident_types
-        severity_levels
         estimated_duration
         is_active
         flow_diagram_url
@@ -144,8 +140,6 @@ router.post('/', asyncHandler(async (req, res) => {
     'dgraph.type': 'PlaybookTemplate',
     name: playbookData.name,
     description: playbookData.description,
-    incident_types: playbookData.incident_types || [],
-    severity_levels: playbookData.severity_levels || [],
     estimated_duration: playbookData.estimated_duration || '',
     is_active: playbookData.is_active !== undefined ? playbookData.is_active : true,
     created_at: new Date().toISOString(),
@@ -199,8 +193,6 @@ router.put('/:id', asyncHandler(async (req, res) => {
   // Add fields that are being updated
   if (updates.name) playbook.name = updates.name;
   if (updates.description) playbook.description = updates.description;
-  if (updates.incident_types) playbook.incident_types = updates.incident_types;
-  if (updates.severity_levels) playbook.severity_levels = updates.severity_levels;
   if (updates.estimated_duration) playbook.estimated_duration = updates.estimated_duration;
   if (updates.is_active !== undefined) playbook.is_active = updates.is_active;
   if (updates.flow_diagram_url !== undefined) playbook.flow_diagram_url = updates.flow_diagram_url;
