@@ -247,6 +247,8 @@ router.post('/:id/upload-diagram', upload.single('diagram'), asyncHandler(async 
     });
   }
 
+  logger.info(`File uploaded: ${req.file.filename}, Path: ${req.file.path}`);
+
   // Construct the URL for the uploaded file
   const fileUrl = `/api/playbooks/diagrams/${req.file.filename}`;
 
@@ -274,7 +276,15 @@ router.post('/:id/upload-diagram', upload.single('diagram'), asyncHandler(async 
   } catch (error) {
     await txn.discard();
     // Delete the uploaded file if database update fails
-    fs.unlinkSync(req.file.path);
+    if (req.file && req.file.path && fs.existsSync(req.file.path)) {
+      try {
+        fs.unlinkSync(req.file.path);
+        logger.info(`Deleted uploaded file after error: ${req.file.path}`);
+      } catch (unlinkError) {
+        logger.error(`Failed to delete file: ${unlinkError.message}`);
+      }
+    }
+    logger.error(`Error uploading diagram: ${error.message}`);
     throw error;
   }
 }));

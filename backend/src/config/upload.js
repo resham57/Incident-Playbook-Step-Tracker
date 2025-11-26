@@ -29,14 +29,16 @@ const storage = multer.diskStorage({
 // File filter to validate file types
 const fileFilter = (req, file, cb) => {
   // Allow common file types for incident management
-  const allowedTypes = /jpeg|jpg|png|gif|pdf|doc|docx|xls|xlsx|txt|csv|zip|tar|gz|log|json|xml/;
-  const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-  const mimetype = allowedTypes.test(file.mimetype);
+  const allowedExtensions = /jpeg|jpg|png|gif|pdf|doc|docx|xls|xlsx|txt|csv|zip|tar|gz|log|json|xml/;
+  const allowedMimetypes = /image\/(jpeg|jpg|png|gif)|application\/(pdf|msword|vnd\.openxmlformats|zip|x-tar|gzip|json|xml)|text\/(plain|csv|xml)/;
+
+  const extname = allowedExtensions.test(path.extname(file.originalname).toLowerCase());
+  const mimetype = allowedMimetypes.test(file.mimetype);
 
   if (mimetype && extname) {
     return cb(null, true);
   } else {
-    cb(new Error('Invalid file type. Only images, documents, and archives are allowed.'));
+    cb(new Error(`Invalid file type: ${file.mimetype}. Only images, documents, and archives are allowed.`));
   }
 };
 
